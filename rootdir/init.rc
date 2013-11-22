@@ -8,7 +8,7 @@ import /init.environ.rc
 import /init.usb.rc
 import /init.${ro.hardware}.rc
 import /init.trace.rc
-import /init.carrier.rc
+import /init.superuser.rc
 
 on early-init
     # Set init and its forked children's oom_adj.
@@ -62,6 +62,8 @@ loglevel 3
     write /sys/fs/cgroup/memory/sw/memory.move_charge_at_immigrate 1
     chown root system /sys/fs/cgroup/memory/sw/tasks
     chmod 0660 /sys/fs/cgroup/memory/sw/tasks
+    chown system system /dev/cpuctl/apps/cpu.notify_on_migrate
+    chmod 0644 /dev/cpuctl/apps/cpu.notify_on_migrate
 
     mkdir /system
     mkdir /data 0771 system system
@@ -153,7 +155,7 @@ loglevel 3
 
 on post-fs
     # once everything is setup, no need to modify /
-    mount rootfs rootfs / ro remount
+    mount rootfs rootfs / rw remount
     # mount shared so changes propagate into child namespaces
     mount rootfs rootfs / shared rec
     mount tmpfs tmpfs /mnt/secure private rec
@@ -247,9 +249,10 @@ on post-fs-data
     mkdir /data/radio 0770 radio radio
 
     # create dalvik-cache and double-check the perms, so as to enforce our permissions
-    mkdir /data/dalvik-cache 0771 system system
-    chown system system /data/dalvik-cache
-    chmod 0771 /data/dalvik-cache
+    mkdir /cache/dalvik-cache 0771 system system
+    chown system system /cache/dalvik-cache
+    chmod 0771 /cache/dalvik-cache
+    symlink /cache/dalvik-cache /data/dalvik-cache
 
     # create resource-cache and double-check the perms
     mkdir /data/resource-cache 0771 system system
@@ -278,9 +281,6 @@ on post-fs-data
     # won't work.
     # Set indication (checked by vold) that we have finished this action
     #setprop vold.post_fs_data_done 1
-
-# Include extra init file
-    import /init.cm.rc
 
 on boot
 # basic network init
@@ -356,13 +356,19 @@ on boot
     chown system system /sys/class/leds/keyboard-backlight/brightness
     chown system system /sys/class/leds/lcd-backlight/brightness
     chown system system /sys/class/leds/button-backlight/brightness
+    chown system system /sys/class/leds/button-backlight/currents
     chown system system /sys/class/leds/jogball-backlight/brightness
+    chown system system /sys/class/leds/amber/brightness
     chown system system /sys/class/leds/red/brightness
     chown system system /sys/class/leds/green/brightness
     chown system system /sys/class/leds/blue/brightness
     chown system system /sys/class/leds/red/device/grpfreq
     chown system system /sys/class/leds/red/device/grppwm
     chown system system /sys/class/leds/red/device/blink
+    chown system system /sys/class/leds/green/off_timer
+    chown system system /sys/class/leds/green/blink
+    chown system system /sys/class/leds/amber/off_timer
+    chown system system /sys/class/leds/amber/blink
     chown system system /sys/class/timed_output/vibrator/enable
     chown system system /sys/module/sco/parameters/disable_esco
     chown system system /sys/kernel/ipv4/tcp_wmem_min
@@ -376,6 +382,9 @@ on boot
 # Set these so we can remotely update SELinux policy
     chown system system /sys/fs/selinux/load
     chown system system /sys/fs/selinux/enforce
+
+# Start the sysinit service
+    start sysinit
 
 # Define TCP buffer sizes for various networks
 #   ReadMin, ReadInitial, ReadMax, WriteMin, WriteInitial, WriteMax,
@@ -586,3 +595,24 @@ service mdnsd /system/bin/mdnsd
     socket mdnsd stream 0660 mdnsr inet
     disabled
     oneshot
+
+service compcache /system/bin/handle_compcache
+    class main
+    user root
+    group root
+    oneshot
+
+service sysinit /system/bin/sysinit
+    class main
+    user root
+    group root
+    oneshot
+
+# adb over network
+on property:service.adb.tcp.port=5555
+    stop adbd
+    start adbd
+
+on property:service.adb.tcp.port=-1
+    stop adbd
+    start adbd

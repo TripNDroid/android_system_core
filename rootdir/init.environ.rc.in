@@ -6,7 +6,10 @@ on init
     export ANDROID_ROOT /system
     export ANDROID_ASSETS /system/app
     export ANDROID_DATA /data
+    export ANDROID_CACHE /cache
     export ANDROID_STORAGE /storage
+    export TERM linux
+    export TERMINFO /system/etc/terminfo
     export ASEC_MOUNTPOINT /mnt/asec
     export LOOP_MOUNTPOINT /mnt/obb
     export BOOTCLASSPATH %BOOTCLASSPATH%
