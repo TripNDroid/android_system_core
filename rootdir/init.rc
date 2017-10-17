@@ -481,6 +481,9 @@ on post-fs-data
 
     init_user0
 
+    start zygote
+    start zygote_secondary
+
     # Reload policy from /data/security if present.
     setprop selinux.reload_policy 1
 
